@@ -3,6 +3,8 @@ title: "LAGOS Spatial Analysis"
 author: "Matthew Ross"
 date: "9/11/2019"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -25,13 +27,16 @@ library(USAboundaries) #USA states and counties
 ### First download and then specifically grab the locus (or site lat longs)
 ```{r data-read}
 #Lagos download script
-lagosne_get(version='1.087.1',dest_folder = LAGOSNE:::lagos_path())
+#lagosne_get(version='1.087.1',dest_folder = LAGOSNE:::lagos_path())
 
 #Load in lagos
-lagos <- lagosne_load()
+#lagos <- lagosne_load(version = "1.087.1")
 
 #Grab the lake centroid info
-lake_centers <- lagos$locus
+#lake_centers <- lagos$locus
+
+load("lake_centers.Rdata")
+
 ```
 
 
@@ -39,13 +44,13 @@ lake_centers <- lagos$locus
 ### Convert to spatial data
 ```{r}
 #Look at the column names
-#names(lake_centers)
+names(lake_centers)
 
 #Look at the structure
-#str(lake_centers)
+str(lake_centers)
 
 #View the full dataset
-#View(lake_centers %>% slice(1:100))
+View(lake_centers %>% slice(1:10))
 
 spatial_lakes <- st_as_sf(lake_centers,coords=c('nhd_long','nhd_lat'),
                           crs=4326) %>%
@@ -64,9 +69,9 @@ mapview(subset_spatial)
 ### Subset to only Minnesota
 
 ```{r}
+#Plot all the states to check if they loaded
 states <- us_states()
 
-#Plot all the states to check if they loaded
 #mapview(states)
 minnesota <- states %>%
   filter(name == 'Minnesota') %>%
@@ -80,6 +85,17 @@ minnesota_lakes %>%
   slice(1:1000) %>%
   arrange(lake_area_ha) %>%
   mapview(.,zcol = 'lake_area_ha')
+
+
+#Exact same as above
+minn_1000 <- minnesota_lakes %>%
+  slice(1:1000) %>%
+  arrange(lake_area_ha) 
+
+
+mapview(minn_1000,zcol = 'lake_area_ha')
+
+
 ```
 
 
@@ -89,8 +105,16 @@ minnesota_lakes %>%
 
 ## 1) Show a map outline of Iowa and Illinois (similar to Minnesota map upstream)
 
-```{r }
+```{r Question 1}
 #Your code here
+#?mapview
+#mapview(Iowa and Illinois)
+ill_iowa <- states %>%
+  filter(name == 'Iowa'|name=="Illinois") %>%
+  st_transform(2163)
+
+mapview(ill_iowa)
+
 ```
 
 
@@ -98,7 +122,21 @@ minnesota_lakes %>%
 ## 2) Subset LAGOS data to these sites, how many sites are in Illinois and Iowa
 combined? How does this compare to Minnesota?
 
-```{r}
+```{r Question 2}
+
+#Subset lakes based on spatial position
+iowa_ill_lakes <- spatial_lakes[ill_iowa,]
+
+#another way
+#ill_iowa <- states %>%
+ # filter( name %in% c("Iowa", "illinois")) %>%
+  #st_transform(2163)
+
+#Plotting the first 100 lakes
+iowa_ill_lakes %>%
+  slice(1:100) %>%
+  arrange(lake_area_ha) %>%
+  mapview(.,zcol = 'lake_area_ha')
 
 ```
 
@@ -108,21 +146,43 @@ combined? How does this compare to Minnesota?
 - Here I want to see a histogram plot with lake size on x-axis and frequency on 
 y axis (check out geom_histogram)
 
-```{r}
+```{r Question 3}
 
+ggplot(iowa_ill_lakes, aes(x=lake_area_ha))+
+  geom_histogram(bins = 30)+
+  scale_x_log10()
+
+ggplot(minnesota_lakes, aes(x=lake_area_ha))+
+  geom_histogram(bins = 30)+
+  scale_x_log10()
+
+#ill_iowa_area <- iowa_ill_lakes$lake_area_ha
+#minn_area <- minnesota_lakes$lake_area_ha
+
+# and combine into your new data frame
+#lake_areas <- rbind(ill_iowa_area, minn_area)
+#head(lake_areas)
+
+# hist_lakes <- rbind(ill_iowa_area, minn_area)
+#   
+# ggplot(hist_lakes, aes(lake_area_ha, fill = lake_area_ha)) +
+#   geom_density(alpha = 0.2)
+```
+
+
+## 4) Make an interactive plot of lakes in Iowa and Illinois and color them by lake area in hectares
+
+```{r}
+#Plotting the first 100 lakes
+iowa_ill_lakes %>%
+  slice(1:500) %>%
+  arrange(lake_area_ha) %>%
+  mapview(.,zcol = 'lake_area_ha')
 
 ```
 
 
-## 4) Make an interactive plot of lakes in Iowa and Illinois and color them
-by lake area in hectares
-
-```{r}
-
-```
-
-
-## 5) What other data sources might we use to understand how reservoirs and 
-natural lakes vary in size in these three states? 
+## 5) What other data sources might we use to understand how reservoirs and natural lakes vary in size in these three states? 
+We could also use remote sensing data from high-ish temporal resolution systems like LandSat, MODIS, and Sentinel2 and then use a classification algorithm that distinguishes between water and land surface (probably by reflectance values) to calculate the spatial extent of the lakes as they vary over time
 
 
